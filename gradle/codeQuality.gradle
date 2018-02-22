@@ -4,6 +4,7 @@
 apply plugin: 'org.kordamp.gradle.stats'
 apply plugin: 'com.github.spotbugs'
 apply plugin: 'org.sonarqube'
+apply plugin: 'net.ltgt.apt'
 apply plugin: 'checkstyle'
 apply plugin: 'jacoco'
 apply plugin: 'java'
@@ -14,18 +15,16 @@ configurations {
 }
 
 dependencies {
+  annotationProcessor annotationProcessors.nullaway
   checkstyleConfig gradlePlugins.checkstyle
-}
-
-tasks.withType(JavaCompile) {
-  options.encoding = 'UTF-8'
-  options.compilerArgs << '-Xlint:all'
+  errorprone libraries.errorProneCore
 }
 
 javadoc.options.links(
-  'http://docs.oracle.com/javase/8/docs/api/',
-  'http://typesafehub.github.com/config/latest/api/',
-  "http://google.github.io/guava/releases/${versions.guava}/api/docs/")
+  'https://lightbend.github.io/config/latest/api/',
+  "https://google.github.io/guava/releases/${versions.guava}/api/docs/",
+  "https://docs.oracle.com/javase/${JavaVersion.current().majorVersion}/docs/api/",
+  )
 
 checkstyle {
   showViolations = true
@@ -35,7 +34,8 @@ checkstyle {
 
 spotbugs {
   effort = 'max'
-  excludeFilter = file("${rootDir}/config/findbugs/exclude.xml")
+  toolVersion = pluginVersions.spotbugs
+  excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
 }
 
 pmd {
@@ -73,6 +73,34 @@ sonarqube {
 }
 tasks.sonarqube.dependsOn(jacocoMerge)
 
+tasks.withType(JavaCompile) {
+  options.encoding = 'UTF-8'
+  options.compilerArgs << '-Xlint:all'
+  options.compilerArgs += [
+    '-Xep:ClassName',
+    '-Xep:ComparisonContractViolated',
+    '-Xep:DepAnn',
+    '-Xep:DivZero',
+    '-Xep:LockMethodChecker',
+    '-Xep:LongLiteralLowerCaseSuffix',
+    '-Xep:NoAllocation',
+    '-Xep:NumericEquality',
+    '-Xep:UnlockMethod',
+    '-Xep:FunctionalInterfaceClash',
+    '-Xep:MissingDefault',
+    '-Xep:RedundantThrows',
+    '-Xep:UnnecessaryDefaultInEnumSwitch',
+    '-Xep:MixedArrayDimensions',
+    '-Xep:RemoveUnusedImports',
+  ]
+  if (name == 'compileJava') {
+    options.compilerArgs += [
+      '-XepOpt:NullAway:AnnotatedPackages=com.github.benmanes.caffeine',
+      '-Xep:NullAway:ERROR',
+    ]
+  }
+}
+
 tasks.withType(Test) {
   if (System.properties.containsKey('debug')) {
     jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005'
@@ -103,9 +131,9 @@ tasks.withType(Checkstyle) {
 }
 
 afterEvaluate {
-  tasks.findAll { it.name.startsWith('findbugs') }.each {
-    it.enabled = System.properties.containsKey('findbugs')
-    it.group = 'FindBugs'
+  tasks.findAll { it.name.startsWith('spotbugs') }.each {
+    it.enabled = System.properties.containsKey('spotbugs')
+    it.group = 'SpotBugs'
     it.reports {
       xml.enabled = false
       html.enabled = true

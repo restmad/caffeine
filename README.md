@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/ben-manes/caffeine.svg)](https://travis-ci.org/ben-manes/caffeine)
 [![Coverage Status](https://img.shields.io/coveralls/ben-manes/caffeine.svg)](https://coveralls.io/r/ben-manes/caffeine?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.ben-manes.caffeine/caffeine/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.ben-manes.caffeine/caffeine)
-[![JavaDoc](https://javadoc-emblem.rhcloud.com/doc/com.github.ben-manes.caffeine/caffeine/badge.svg)](http://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine)
+[![JavaDoc](http://www.javadoc.io/badge/com.github.ben-manes.caffeine/caffeine.svg)](http://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine)
 [![License](http://img.shields.io/:license-apache-brightgreen.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 [![Stack Overflow](http://img.shields.io/:stack%20overflow-caffeine-brightgreen.svg)](http://stackoverflow.com/questions/tagged/caffeine)
 <a href="https://github.com/ben-manes/caffeine/wiki">
@@ -47,14 +47,15 @@ Use Caffeine in a community provided integration:
  * [Spring Cache][spring]: As of Spring 4.3 & Boot 1.4
  * [Scaffeine][scaffeine]: Scala wrapper for Caffeine
  * [ScalaCache][scala-cache]: Simple caching in Scala
+ * [Camel][camel]: Routing and mediation engine
  * [jooby][jooby]: Modular micro framework
  * [Druid][druid]: Real-time analytics
 
 Powering infrastructure near you:
  * [Cassandra][cassandra]:  Manage massive amounts of data, fast
  * [Infinispan][infinispan]: Distributed in-memory data grid
+ * [Akka][akka-http]: Build reactive applications easily
  * [Ratpack][ratpack]: Lean & powerful HTTP apps
- * [Camel][camel]: Routing and mediation engine
  * [Corfu][corfu]: A cluster consistency platform
  * [Orbit][orbit]: Virtual actors on the JVM
  * [Finagle][finagle]: Extensible RPC system
@@ -70,7 +71,7 @@ Powering infrastructure near you:
    * [TinyLFU: A Highly Efficient Cache Admission Policy][tinylfu] by Gil Einziger, Roy Friedman, Ben Manes
 
 On the radar,
- * Early discussions with [HBase][hbase], [Solr][solr], and [Rapidoid][rapidoid]
+ * Early discussions with [HBase][hbase], [Solr][solr], and [Play!][play]
  * W-TinyLfu implemented by [go-tinylfu][go-tinylfu], [mango-cache][mango-cache], [transitory][transitory], and [ohc][ohc]
 
 ### Download
@@ -78,11 +79,11 @@ On the radar,
 Download from [Maven Central][maven] or depend via Gradle:
 
 ```gradle
-compile 'com.github.ben-manes.caffeine:caffeine:2.5.4'
+compile 'com.github.ben-manes.caffeine:caffeine:2.6.2'
 
 // Optional extensions
-compile 'com.github.ben-manes.caffeine:guava:2.5.4'
-compile 'com.github.ben-manes.caffeine:jcache:2.5.4'
+compile 'com.github.ben-manes.caffeine:guava:2.6.2'
+compile 'com.github.ben-manes.caffeine:jcache:2.6.2'
 ```
 
 See the [release notes][releases] for details of the changes.
@@ -110,7 +111,7 @@ Snapshots of the development version are available in
 [releases]: https://github.com/ben-manes/caffeine/releases
 [snapshots]: https://oss.sonatype.org/content/repositories/snapshots
 [efficiency]: https://github.com/ben-manes/caffeine/wiki/Efficiency
-[tinylfu]: http://arxiv.org/pdf/1512.00727.pdf
+[tinylfu]: https://dl.acm.org/authorize?N41277
 [add-a-boost]: https://www.voxxed.com/blog/2015/12/add-a-boost-of-caffeine-to-your-java
 [voxxed]: https://www.voxxed.com
 [modern-cache]: http://highscalability.com/blog/2016/1/25/design-of-a-modern-cache.html
@@ -133,6 +134,7 @@ Snapshots of the development version are available in
 [druid]: http://druid.io/docs/latest/development/extensions-core/caffeine-cache.html
 [jooby]: http://jooby.org/doc/caffeine
 [orbit]: https://github.com/orbit/orbit
-[camel]: https://github.com/apache/camel
+[camel]: https://github.com/apache/camel/blob/master/components/camel-caffeine/src/main/docs/caffeine-cache-component.adoc
 [corfu]: https://github.com/CorfuDB/CorfuDB
-[rapidoid]: https://github.com/rapidoid/rapidoid/issues/104
+[akka-http]: https://doc.akka.io/docs/akka-http/current/common/caching.html
+[play]: https://github.com/playframework/playframework/pull/8025

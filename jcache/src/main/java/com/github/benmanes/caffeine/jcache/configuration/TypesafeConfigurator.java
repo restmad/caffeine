@@ -217,6 +217,7 @@ public final class TypesafeConfigurator {
       boolean eternal = Objects.equals(creation, Duration.ETERNAL)
           && Objects.equals(update, Duration.ETERNAL)
           && Objects.equals(access, Duration.ETERNAL);
+      @SuppressWarnings("NullAway")
       Factory<? extends ExpiryPolicy> factory = eternal
           ? EternalExpiryPolicy.factoryOf()
           : FactoryBuilder.factoryOf(new JCacheExpiryPolicy(creation, update, access));

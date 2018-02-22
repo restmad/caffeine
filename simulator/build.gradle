@@ -10,7 +10,6 @@ dependencies {
   compile libraries.akka
   compile libraries.ycsb
   compile libraries.guava
-  compile libraries.stream
   compile libraries.fastutil
   compile libraries.flipTables
   compile benchmarkLibraries.ohc
@@ -41,6 +40,14 @@ coverity {
 sonarqube {
   skipProject = true
 }
+
+jar.manifest {
+  name 'com.github.benmanes.caffeine.simulator'
+  instruction 'Automatic-Module-Name',
+    'com.github.benmanes.caffeine.simulator'
+}
+
+compileJava.options.compilerArgs += [ '-Xep:NullAway:OFF' ]
 
 tasks.withType(Javadoc) {
   options.addStringOption('Xdoclint:none', '-quiet')

@@ -28,12 +28,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Year;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.annotation.Nullable;
 import javax.lang.model.element.Modifier;
 
 import com.github.benmanes.caffeine.cache.local.AddConstructor;
@@ -52,14 +54,14 @@ import com.github.benmanes.caffeine.cache.local.AddWriteBuffer;
 import com.github.benmanes.caffeine.cache.local.Finalize;
 import com.github.benmanes.caffeine.cache.local.LocalCacheContext;
 import com.github.benmanes.caffeine.cache.local.LocalCacheRule;
-import com.google.common.base.Preconditions;
+import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
-import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
@@ -80,46 +82,41 @@ public final class LocalCacheFactoryGenerator {
       new AddExpirationTicker(), new AddMaximum(), new AddFastPath(), new AddDeques(),
       new AddExpireAfterAccess(), new AddExpireAfterWrite(), new AddRefreshAfterWrite(),
       new AddWriteBuffer(), new Finalize());
-  final NavigableMap<String, ImmutableSet<Feature>> classNameToFeatures;
   final Path directory;
 
   TypeSpec.Builder factory;
 
+  private final List<TypeSpec> factoryTypes;
+
   public LocalCacheFactoryGenerator(Path directory) {
     this.directory = requireNonNull(directory);
-    this.classNameToFeatures = new TreeMap<>();
+    this.factoryTypes = new ArrayList<>();
   }
 
   void generate() throws IOException {
     factory = TypeSpec.classBuilder("LocalCacheFactory")
         .addModifiers(Modifier.FINAL)
-        .addAnnotation(AnnotationSpec.builder(SuppressWarnings.class)
-        .addMember("value", "{$S, $S, $S, $S}", "unchecked", "unused", "PMD", "MissingOverride")
-        .build());
+        .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
     addClassJavaDoc();
-    generateLocalCaches();
+    addConstants();
 
+    generateLocalCaches();
     addFactoryMethods();
     writeJavaFile();
   }
 
   private void addFactoryMethods() {
-    factory.addMethod(newBoundedLocalCache());
-  }
-
-  private MethodSpec newBoundedLocalCache() {
-    Preconditions.checkState(!classNameToFeatures.isEmpty(), "Must generate all cache types first");
-    return MethodSpec.methodBuilder("newBoundedLocalCache")
+    factory.addMethod(MethodSpec.methodBuilder("newBoundedLocalCache")
         .addTypeVariable(kTypeVar)
         .addTypeVariable(vTypeVar)
         .returns(BOUNDED_LOCAL_CACHE)
         .addModifiers(Modifier.STATIC)
-        .addCode(LocalCacheSelectorCode.get(classNameToFeatures.keySet()))
+        .addCode(LocalCacheSelectorCode.get())
         .addParameter(BUILDER_PARAM)
-        .addParameter(CACHE_LOADER_PARAM)
+        .addParameter(CACHE_LOADER_PARAM.toBuilder().addAnnotation(Nullable.class).build())
         .addParameter(boolean.class, "async")
         .addJavadoc("Returns a cache optimized for this configuration.\n")
-        .build();
+        .build());
   }
 
   private void writeJavaFile() throws IOException {
@@ -129,47 +126,79 @@ public final class LocalCacheFactoryGenerator {
         .indent("  ")
         .build()
         .writeTo(directory);
+
+    for (TypeSpec typeSpec : factoryTypes) {
+      JavaFile.builder(getClass().getPackage().getName(), typeSpec)
+              .addFileComment(header, Year.now())
+              .indent("  ")
+              .build()
+              .writeTo(directory);
+    }
+  }
+
+  private void addConstants() {
+    List<String> constants = ImmutableList.of("maximum", "edenMaximum", "mainProtectedMaximum",
+        "weightedSize", "edenWeightedSize", "mainProtectedWeightedSize");
+    for (String constant : constants) {
+      String name = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, constant);
+      factory.addField(FieldSpec.builder(String.class, name)
+          .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+          .initializer("$S", constant)
+          .build());
+    }
+
+    constants = ImmutableList.of("key", "value", "accessTime", "writeTime");
+    for (String constant : constants) {
+      String name = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, constant);
+      factory.addField(FieldSpec.builder(String.class, name)
+              .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+              .initializer("$S", constant)
+              .build());
+    }
   }
 
   private void generateLocalCaches() {
-    fillClassNameToFeatures();
+    NavigableMap<String, Set<Feature>> classNameToFeatures = getClassNameToFeatures();
     classNameToFeatures.forEach((className, features) -> {
       String higherKey = classNameToFeatures.higherKey(className);
       boolean isLeaf = (higherKey == null) || !higherKey.startsWith(className);
-      addLocalCacheSpec(className, isLeaf, features);
+      TypeSpec cacheSpec = makeLocalCacheSpec(className, isLeaf, features);
+      factoryTypes.add(cacheSpec);
     });
   }
 
-  private void fillClassNameToFeatures() {
+  private NavigableMap<String, Set<Feature>> getClassNameToFeatures() {
+    NavigableMap<String, Set<Feature>> classNameToFeatures = new TreeMap<>();
     for (List<Object> combination : combinations()) {
-      Set<Feature> features = new LinkedHashSet<>();
-
-      features.add(((Boolean) combination.get(0)) ? Feature.STRONG_KEYS : Feature.WEAK_KEYS);
-      features.add(((Boolean) combination.get(1)) ? Feature.STRONG_VALUES : Feature.INFIRM_VALUES);
-      for (int i = 2; i < combination.size(); i++) {
-        if ((Boolean) combination.get(i)) {
-          features.add(featureByIndex[i]);
-        }
-      }
-      if (features.contains(Feature.MAXIMUM_WEIGHT)) {
-        features.remove(Feature.MAXIMUM_SIZE);
-      }
-
+      Set<Feature> features = getFeatures(combination);
       String className = encode(Feature.makeClassName(features));
-      classNameToFeatures.put(className, ImmutableSet.copyOf(features));
+      classNameToFeatures.put(className, features);
     }
+    return classNameToFeatures;
+  }
+
+  private Set<Feature> getFeatures(List<Object> combination) {
+    Set<Feature> features = new LinkedHashSet<>();
+    features.add(((Boolean) combination.get(0)) ? Feature.STRONG_KEYS : Feature.WEAK_KEYS);
+    features.add(((Boolean) combination.get(1)) ? Feature.STRONG_VALUES : Feature.INFIRM_VALUES);
+    for (int i = 2; i < combination.size(); i++) {
+      if ((Boolean) combination.get(i)) {
+        features.add(featureByIndex[i]);
+      }
+    }
+    if (features.contains(Feature.MAXIMUM_WEIGHT)) {
+      features.remove(Feature.MAXIMUM_SIZE);
+    }
+    return features;
   }
 
   private Set<List<Object>> combinations() {
     Set<Boolean> options = ImmutableSet.of(true, false);
-    List<Set<Boolean>> sets = new ArrayList<>();
-    for (int i = 0; i < featureByIndex.length; i++) {
-      sets.add(options);
-    }
+    List<Set<Boolean>> sets = Collections.nCopies(featureByIndex.length, options);
     return Sets.cartesianProduct(sets);
   }
 
-  private void addLocalCacheSpec(String className, boolean isFinal, Set<Feature> features) {
+  private TypeSpec makeLocalCacheSpec(String className, boolean isFinal, Set<Feature> features) {
     TypeName superClass;
     Set<Feature> parentFeatures;
     Set<Feature> generateFeatures;
@@ -189,7 +218,7 @@ public final class LocalCacheFactoryGenerator {
     for (LocalCacheRule rule : rules) {
       rule.accept(context);
     }
-    factory.addType(context.cache.build());
+    return context.cache.build();
   }
 
   private void addClassJavaDoc() {
@@ -205,7 +234,7 @@ public final class LocalCacheFactoryGenerator {
         .replaceFirst("WEAK_KEYS", "W")
         .replaceFirst("_STRONG_VALUES", "S")
         .replaceFirst("_INFIRM_VALUES", "I")
-        .replaceFirst("_LISTENING", "Li")
+        .replaceFirst("_LISTENING", "L")
         .replaceFirst("_STATS", "S")
         .replaceFirst("_MAXIMUM", "M")
         .replaceFirst("_WEIGHT", "W")

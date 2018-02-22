@@ -15,19 +15,28 @@
  */
 package com.github.benmanes.caffeine.cache;
 
-import java.util.Set;
+import static com.github.benmanes.caffeine.cache.Specifications.BOUNDED_LOCAL_CACHE;
+import static com.github.benmanes.caffeine.cache.Specifications.BUILDER;
+import static com.github.benmanes.caffeine.cache.Specifications.CACHE_LOADER;
+import static com.github.benmanes.caffeine.cache.Specifications.LOCAL_CACHE_FACTORY;
 
+import java.lang.reflect.Constructor;
+
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.TypeName;
 
 /**
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 public final class LocalCacheSelectorCode {
   private final CodeBlock.Builder block;
 
   private LocalCacheSelectorCode() {
     block = CodeBlock.builder()
-        .addStatement("$T sb = new $T()", StringBuilder.class, StringBuilder.class);
+        .addStatement("$1T sb = new $1T(\"$2N.\")", StringBuilder.class,
+            ((ClassName)LOCAL_CACHE_FACTORY).packageName());
   }
 
   private LocalCacheSelectorCode keys() {
@@ -50,7 +59,7 @@ public final class LocalCacheSelectorCode {
 
   private LocalCacheSelectorCode removalListener() {
     block.beginControlFlow("if (builder.removalListener != null)")
-            .addStatement("sb.append(\"Li\")")
+            .addStatement("sb.append('L')")
         .endControlFlow();
     return this;
   }
@@ -87,16 +96,20 @@ public final class LocalCacheSelectorCode {
     return this;
   }
 
-  private LocalCacheSelectorCode selector(Set<String> classNames) {
-    CodeBlock.Builder switchBuilder = CodeBlock.builder();
-    switchBuilder.beginControlFlow("switch (sb.toString())");
-    for (String className : classNames) {
-      switchBuilder.addStatement(
-          "case $S: return new $N<>(builder, cacheLoader, async)", className, className);
-    }
-    switchBuilder.addStatement("default: throw new $T(sb.toString())", IllegalStateException.class);
-    switchBuilder.endControlFlow();
-    block.add(switchBuilder.build());
+  private LocalCacheSelectorCode selector() {
+    block
+        .beginControlFlow("try")
+            .addStatement("$T<?> clazz = $T.class.getClassLoader().loadClass(sb.toString())",
+                Class.class, LOCAL_CACHE_FACTORY)
+            .addStatement("$T<?> ctor = clazz.getDeclaredConstructor($T.class, $T.class, $T.class)",
+                Constructor.class, BUILDER, CACHE_LOADER.rawType, TypeName.BOOLEAN)
+            .add("@SuppressWarnings($S)\n", "unchecked")
+            .addStatement("$1T factory = ($1T) ctor.newInstance(builder, cacheLoader, async)",
+                BOUNDED_LOCAL_CACHE)
+            .addStatement("return factory")
+        .nextControlFlow("catch ($T e)", ReflectiveOperationException.class)
+            .addStatement("throw new $T(sb.toString(), e)", IllegalStateException.class)
+      .endControlFlow();
     return this;
   }
 
@@ -104,7 +117,7 @@ public final class LocalCacheSelectorCode {
     return block.build();
   }
 
-  public static CodeBlock get(Set<String> classNames) {
+  public static CodeBlock get() {
     return new LocalCacheSelectorCode()
         .keys()
         .values()
@@ -112,7 +125,7 @@ public final class LocalCacheSelectorCode {
         .stats()
         .maximum()
         .expires()
-        .selector(classNames)
+        .selector()
         .build();
   }
 }

@@ -76,7 +76,7 @@ public final class CacheManagerImpl implements CacheManager {
   }
 
   @Override
-  public ClassLoader getClassLoader() {
+  public @Nullable ClassLoader getClassLoader() {
     return classLoaderReference.get();
   }
 
@@ -108,8 +108,9 @@ public final class CacheManagerImpl implements CacheManager {
   }
 
   @Override
-  public <K, V> Cache<K, V> getCache(String cacheName, Class<K> keyType, Class<V> valueType) {
-    CacheProxy<K, V> cache = getOrCreateCache(cacheName);
+  public @Nullable <K, V> Cache<K, V> getCache(
+      String cacheName, Class<K> keyType, Class<V> valueType) {
+    CacheProxy<K, V> cache = getCache(cacheName);
     if (cache == null) {
       return null;
     }
@@ -128,26 +129,7 @@ public final class CacheManagerImpl implements CacheManager {
   }
 
   @Override
-  public <K, V> Cache<K, V> getCache(String cacheName) {
-    CacheProxy<K, V> cache = getOrCreateCache(cacheName);
-    if (cache == null) {
-      return null;
-    }
-
-    Configuration<?, ?> configuration = cache.getConfiguration();
-    if (!Object.class.equals(configuration.getKeyType()) ||
-        !Object.class.equals(configuration.getValueType())) {
-      String msg = String.format("Cache %s was defined with specific types Cache<%s, %s> in which "
-          + "case CacheManager.getCache(String, Class, Class) must be used", cacheName,
-          configuration.getKeyType(), configuration.getValueType());
-      throw new IllegalArgumentException(msg);
-    }
-
-    return cache;
-  }
-
-  /** Returns the cache, creating it if necessary. */
-  private @Nullable <K, V> CacheProxy<K, V> getOrCreateCache(String cacheName) {
+  public <K, V> CacheProxy<K, V> getCache(String cacheName) {
     requireNonNull(cacheName);
     requireNotClosed();
 
@@ -167,6 +149,7 @@ public final class CacheManagerImpl implements CacheManager {
 
   @Override
   public Iterable<String> getCacheNames() {
+    requireNotClosed();
     return Collections.unmodifiableCollection(new ArrayList<>(caches.keySet()));
   }
 

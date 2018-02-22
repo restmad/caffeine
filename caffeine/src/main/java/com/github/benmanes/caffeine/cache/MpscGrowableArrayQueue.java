@@ -127,6 +127,7 @@ abstract class BaseMpscLinkedArrayQueuePad2<E> extends BaseMpscLinkedArrayQueueP
   long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+@SuppressWarnings("NullAway")
 abstract class BaseMpscLinkedArrayQueueConsumerFields<E> extends BaseMpscLinkedArrayQueuePad2<E> {
   protected long consumerMask;
   protected E[] consumerBuffer;
@@ -139,6 +140,7 @@ abstract class BaseMpscLinkedArrayQueuePad3<E> extends BaseMpscLinkedArrayQueueC
   long p10, p11, p12, p13, p14, p15, p16, p17;
 }
 
+@SuppressWarnings("NullAway")
 abstract class BaseMpscLinkedArrayQueueColdProducerFields<E>
     extends BaseMpscLinkedArrayQueuePad3<E> {
   protected volatile long producerLimit;
@@ -146,7 +148,7 @@ abstract class BaseMpscLinkedArrayQueueColdProducerFields<E>
   protected E[] producerBuffer;
 }
 
-@SuppressWarnings({"PMD", "restriction"})
+@SuppressWarnings({"PMD", "NullAway", "restriction"})
 abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdProducerFields<E> {
   // No post padding here, subclasses must add
 
@@ -189,7 +191,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
     int p2capacity = ceilingPowerOfTwo(initialCapacity);
     // leave lower bit of mask clear
-    long mask = (p2capacity - 1) << 1;
+    long mask = (p2capacity - 1L) << 1;
     // need extra element to point at next array
     E[] buffer = allocate(p2capacity + 1);
     producerBuffer = buffer;
@@ -210,6 +212,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
   }
 
   @Override
+  @SuppressWarnings("MissingDefault")
   public boolean offer(final E e) {
     if (null == e) {
       throw new NullPointerException();
@@ -304,8 +307,8 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
    * <p>
    * This implementation is correct for single consumer thread use only.
    */
-  @SuppressWarnings("unchecked")
   @Override
+  @SuppressWarnings("unchecked")
   public E poll() {
     final E[] buffer = consumerBuffer;
     final long index = consumerIndex;
@@ -371,7 +374,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
     return nextBuffer;
   }
 
-  private long nextArrayOffset(final long mask) {
+  private static long nextArrayOffset(final long mask) {
     return modifiedCalcElementOffset(mask + 2, Long.MAX_VALUE);
   }
 
@@ -397,7 +400,7 @@ abstract class BaseMpscLinkedArrayQueue<E> extends BaseMpscLinkedArrayQueueColdP
 
   private long newBufferAndOffset(E[] nextBuffer, final long index) {
     consumerBuffer = nextBuffer;
-    consumerMask = (nextBuffer.length - 2) << 1;
+    consumerMask = (nextBuffer.length - 2L) << 1;
     final long offsetInNew = modifiedCalcElementOffset(index, consumerMask);
     return offsetInNew;
   }

@@ -48,7 +48,7 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 class CaffeinatedGuavaCache<K, V> implements Cache<K, V>, Serializable {
   static final long serialVersionUID = 1L;
 
-  private final com.github.benmanes.caffeine.cache.Cache<K, V> cache;
+  final com.github.benmanes.caffeine.cache.Cache<K, V> cache;
 
   CaffeinatedGuavaCache(com.github.benmanes.caffeine.cache.Cache<K, V> cache) {
     this.cache = requireNonNull(cache);
@@ -60,7 +60,7 @@ class CaffeinatedGuavaCache<K, V> implements Cache<K, V>, Serializable {
   }
 
   @Override
-  @SuppressWarnings({"PMD.PreserveStackTrace", "PMD.ExceptionAsFlowControl"})
+  @SuppressWarnings({"PMD.PreserveStackTrace", "PMD.ExceptionAsFlowControl", "NullAway"})
   public V get(K key, Callable<? extends V> valueLoader) throws ExecutionException {
     requireNonNull(valueLoader);
     try {

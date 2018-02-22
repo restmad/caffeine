@@ -15,6 +15,7 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sampled;
 
+import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
 
 import java.util.ArrayList;
@@ -39,6 +40,13 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 /**
  * A cache that uses a sampled array of entries to implement simple page replacement algorithms.
+ * <p>
+ * The sampling approach for an approximate of classical policies is described
+ * <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.110.8469">Effient Randomized Web
+ * Cache Replacement Schemes Using Samples from Past Eviction Times</a>. The Hyperbolic algorithm is
+ * a newer addition to this family and is described in
+ * <a href="https://www.usenix.org/system/files/conference/atc17/atc17-blankstein.pdf">Hyperbolic
+ * Caching: Flexible Caching for Web Applications</a>.
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
@@ -108,7 +116,7 @@ public final class SampledPolicy implements Policy {
       List<Node> sample = (policy == EvictionPolicy.RANDOM)
           ? Arrays.asList(table)
           : sampleStrategy.sample(table, candidate, sampleSize, random, policyStats);
-      Node victim = policy.select(sample, random);
+      Node victim = policy.select(sample, random, tick);
       policyStats.recordEviction();
 
       if (admittor.admit(candidate.key, victim.key)) {
@@ -189,7 +197,7 @@ public final class SampledPolicy implements Policy {
 
     /** Evicts entries based on insertion order. */
     FIFO {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         return sample.stream().min((first, second) ->
             Long.compare(first.insertionTime, second.insertionTime)).get();
       }
@@ -197,7 +205,7 @@ public final class SampledPolicy implements Policy {
 
     /** Evicts entries based on how recently they are used, with the least recent evicted first. */
     LRU {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         return sample.stream().min((first, second) ->
             Long.compare(first.accessTime, second.accessTime)).get();
       }
@@ -205,7 +213,7 @@ public final class SampledPolicy implements Policy {
 
     /** Evicts entries based on how recently they are used, with the least recent evicted first. */
     MRU {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         return sample.stream().max((first, second) ->
             Long.compare(first.accessTime, second.accessTime)).get();
       }
@@ -215,7 +223,7 @@ public final class SampledPolicy implements Policy {
      * Evicts entries based on how frequently they are used, with the least frequent evicted first.
      */
     LFU {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         return sample.stream().min((first, second) ->
             Long.compare(first.frequency, second.frequency)).get();
       }
@@ -225,7 +233,7 @@ public final class SampledPolicy implements Policy {
      * Evicts entries based on how frequently they are used, with the most frequent evicted first.
      */
     MFU {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         return sample.stream().max((first, second) ->
             Long.compare(first.frequency, second.frequency)).get();
       }
@@ -233,21 +241,31 @@ public final class SampledPolicy implements Policy {
 
     /** Evicts a random entry. */
     RANDOM {
-      @Override Node select(List<Node> sample, Random random) {
+      @Override Node select(List<Node> sample, Random random, long tick) {
         int victim = random.nextInt(sample.size());
         return sample.get(victim);
+      }
+    },
+
+    /** Evicts entries based on how frequently they are used divided by their age. */
+    HYPERBOLIC {
+      @Override Node select(List<Node> sample, Random random, long tick) {
+        return sample.stream().min((first, second) ->
+            Double.compare(hyperbolic(first, tick), hyperbolic(second, tick))).get();
+      }
+      double hyperbolic(Node node, long tick) {
+        return node.frequency / (double) (tick - node.insertionTime);
       }
     };
 
     public String label() {
-      return StringUtils.capitalize(name().toLowerCase());
+      return StringUtils.capitalize(name().toLowerCase(US));
     }
 
     /** Determines which node to evict. */
-    abstract Node select(List<Node> sample, Random random);
+    abstract Node select(List<Node> sample, Random random, long tick);
   }
 
-  /** A node on the double-linked list. */
   static final class Node {
     final long key;
     final long insertionTime;
@@ -256,7 +274,6 @@ public final class SampledPolicy implements Policy {
     int frequency;
     int index;
 
-    /** Creates a new node. */
     public Node(long key, int index, long tick) {
       this.insertionTime = tick;
       this.accessTime = tick;
@@ -281,7 +298,7 @@ public final class SampledPolicy implements Policy {
       return config().getInt("sampled.size");
     }
     public Sample sampleStrategy() {
-      return Sample.valueOf(config().getString("sampled.strategy").toUpperCase());
+      return Sample.valueOf(config().getString("sampled.strategy").toUpperCase(US));
     }
   }
 }

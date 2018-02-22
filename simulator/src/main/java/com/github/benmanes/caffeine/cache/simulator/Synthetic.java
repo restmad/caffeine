@@ -15,6 +15,8 @@
  */
 package com.github.benmanes.caffeine.cache.simulator;
 
+import static java.util.Locale.US;
+
 import java.util.stream.LongStream;
 
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings.SyntheticSettings.HotspotSettings;
@@ -25,7 +27,7 @@ import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.NumberGenerator;
 import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
-import com.yahoo.ycsb.generator.UniformIntegerGenerator;
+import com.yahoo.ycsb.generator.UniformLongGenerator;
 import com.yahoo.ycsb.generator.ZipfianGenerator;
 
 /**
@@ -40,7 +42,7 @@ public final class Synthetic {
   /** Returns a sequence of events based on the setting's distribution. */
   public static LongStream generate(BasicSettings settings) {
     int events = settings.synthetic().events();
-    switch (settings.synthetic().distribution().toLowerCase()) {
+    switch (settings.synthetic().distribution().toLowerCase(US)) {
       case "counter":
         return counter(settings.synthetic().counter().start(), events);
       case "exponential":
@@ -149,7 +151,7 @@ public final class Synthetic {
    * @return a stream of cache events
    */
   public static LongStream uniform(int lowerBound, int upperBound, int events) {
-    return generate(new UniformIntegerGenerator(lowerBound, upperBound), events);
+    return generate(new UniformLongGenerator(lowerBound, upperBound), events);
   }
 
   /** Returns a sequence of items constructed by the generator. */

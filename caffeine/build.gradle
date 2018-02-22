@@ -8,6 +8,9 @@ sourceSets {
   main {
     java.srcDir "${buildDir}/generated-sources/"
   }
+  codeGen {
+    java.srcDir "${buildDir}/generated-sources/"
+  }
 }
 
 configurations {
@@ -55,6 +58,17 @@ dependencies {
   javaPoetCompile libraries.commonsLang3
 }
 
+compileCodeGenJava {
+  outputs.upToDateWhen {
+    !gradle.taskGraph.hasTask('uploadArchives')
+  }
+  dependsOn compileJava
+  destinationDir = compileJava.destinationDir
+  classpath = sourceSets.main.runtimeClasspath + sourceSets.main.output
+  options.incremental = false
+  options.debug = false
+}
+
 jar.manifest {
   name 'com.github.ben-manes.caffeine'
   instruction 'Import-Package',
@@ -64,7 +78,11 @@ jar.manifest {
     'com.github.benmanes.caffeine.base',
     'com.github.benmanes.caffeine.cache',
     'com.github.benmanes.caffeine.cache.stats'
+  instruction 'Automatic-Module-Name',
+    'com.github.benmanes.caffeine'
 }
+
+jar.dependsOn(compileCodeGenJava)
 
 sonarqube {
   properties {

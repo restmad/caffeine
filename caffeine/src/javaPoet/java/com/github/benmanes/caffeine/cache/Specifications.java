@@ -46,8 +46,8 @@ public final class Specifications {
   public static final TypeName vRefQueueType = ParameterizedTypeName.get(
       ClassName.get(ReferenceQueue.class), vTypeVar);
   public static final ClassName nodeType = ClassName.get(PACKAGE_NAME, "Node");
-  public static final TypeName lookupKeyType = ParameterizedTypeName.get(ClassName.get(
-      PACKAGE_NAME + ".References", "LookupKeyReference"), kTypeVar);
+  public static final TypeName lookupKeyType =
+      ClassName.get(PACKAGE_NAME + ".References", "LookupKeyReference");
   public static final TypeName referenceKeyType = ParameterizedTypeName.get(
       ClassName.get(PACKAGE_NAME + ".References", "WeakKeyReference"), kTypeVar);
   public static final TypeName rawReferenceKeyType = ParameterizedTypeName.get(
@@ -63,16 +63,21 @@ public final class Specifications {
   public static final ParameterSpec valueRefQueueSpec =
       ParameterSpec.builder(vRefQueueType, "valueReferenceQueue").build();
 
-  public static final TypeName NODE = ParameterizedTypeName.get(nodeType, kTypeVar, vTypeVar);
   public static final TypeName UNSAFE_ACCESS =
       ClassName.get("com.github.benmanes.caffeine.base", "UnsafeAccess");
 
-  public static final ParameterSpec BUILDER_PARAM = ParameterSpec.builder(ParameterizedTypeName.get(
-      ClassName.get(PACKAGE_NAME, "Caffeine"), kTypeVar, vTypeVar), "builder").build();
-  public static final TypeName BOUNDED_LOCAL_CACHE = ParameterizedTypeName.get(
+  public static final TypeName LOCAL_CACHE_FACTORY =
+      ClassName.get(PACKAGE_NAME, "LocalCacheFactory");
+  public static final ParameterizedTypeName NODE_FACTORY = ParameterizedTypeName.get(
+      ClassName.get(PACKAGE_NAME, "NodeFactory"), kTypeVar, vTypeVar);
+  public static final ClassName BUILDER = ClassName.get(PACKAGE_NAME, "Caffeine");
+  public static final ParameterSpec BUILDER_PARAM = ParameterSpec.builder(
+      ParameterizedTypeName.get(BUILDER, kTypeVar, vTypeVar), "builder").build();
+  public static final ParameterizedTypeName BOUNDED_LOCAL_CACHE = ParameterizedTypeName.get(
       ClassName.get(PACKAGE_NAME, "BoundedLocalCache"), kTypeVar, vTypeVar);
+  public static final TypeName NODE = ParameterizedTypeName.get(nodeType, kTypeVar, vTypeVar);
 
-  public static final TypeName CACHE_LOADER = ParameterizedTypeName.get(
+  public static final ParameterizedTypeName CACHE_LOADER = ParameterizedTypeName.get(
       ClassName.get(PACKAGE_NAME, "CacheLoader"), TypeVariableName.get("? super K"), vTypeVar);
   public static final ParameterSpec CACHE_LOADER_PARAM =
       ParameterSpec.builder(CACHE_LOADER, "cacheLoader").build();
@@ -82,19 +87,17 @@ public final class Specifications {
 
   public static final TypeName STATS_COUNTER =
       ClassName.get(PACKAGE_NAME + ".stats", "StatsCounter");
-
   public static final TypeName TICKER = ClassName.get(PACKAGE_NAME, "Ticker");
 
-  public static final TypeName ACCESS_ORDER_DEQUE = ParameterizedTypeName.get(
-      ClassName.get(PACKAGE_NAME, "AccessOrderDeque"), NODE);
-
-  public static final TypeName WRITE_ORDER_DEQUE = ParameterizedTypeName.get(
-      ClassName.get(PACKAGE_NAME, "WriteOrderDeque"), NODE);
+  public static final TypeName ACCESS_ORDER_DEQUE =
+      ParameterizedTypeName.get(ClassName.get(PACKAGE_NAME, "AccessOrderDeque"), NODE);
+  public static final TypeName WRITE_ORDER_DEQUE =
+      ParameterizedTypeName.get(ClassName.get(PACKAGE_NAME, "WriteOrderDeque"), NODE);
 
   public static final ClassName WRITE_QUEUE_TYPE =
       ClassName.get(PACKAGE_NAME, "MpscGrowableArrayQueue");
-  public static final TypeName WRITE_QUEUE = ParameterizedTypeName.get(
-      WRITE_QUEUE_TYPE, ClassName.get(Runnable.class));
+  public static final TypeName WRITE_QUEUE =
+      ParameterizedTypeName.get(WRITE_QUEUE_TYPE, ClassName.get(Runnable.class));
 
   public static final TypeName EXPIRY = ParameterizedTypeName.get(
       ClassName.get(PACKAGE_NAME, "Expiry"), kTypeVar, vTypeVar);
@@ -113,10 +116,11 @@ public final class Specifications {
 
   /** Creates a public static field with an Unsafe address offset. */
   public static FieldSpec newFieldOffset(String className, String varName) {
-    String name = offsetName(varName);
+    String fieldName = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_UNDERSCORE, varName);
     return FieldSpec
-        .builder(long.class, name, Modifier.PROTECTED, Modifier.STATIC, Modifier.FINAL)
-        .initializer("$T.objectFieldOffset($T.class, $S)", UNSAFE_ACCESS,
-            ClassName.bestGuess(className), varName).build();
+        .builder(long.class, offsetName(varName), Modifier.PROTECTED, Modifier.STATIC, Modifier.FINAL)
+        .initializer("$T.objectFieldOffset($T.class, $L.$L)", UNSAFE_ACCESS,
+            ClassName.bestGuess(className),  LOCAL_CACHE_FACTORY, fieldName)
+        .build();
   }
 }

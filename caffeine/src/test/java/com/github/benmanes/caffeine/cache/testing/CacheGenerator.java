@@ -186,8 +186,8 @@ final class CacheGenerator {
         && ((context.implementation() != Implementation.Caffeine)
             || (context.expireAfterAccess() != Expire.DISABLED)
             || (context.expireAfterWrite() != Expire.DISABLED));
-    boolean expirationIncompatible = (cacheSpec.mustExpiresWithAnyOf().length > 0)
-        && !Arrays.stream(cacheSpec.mustExpiresWithAnyOf()).anyMatch(context::expires);
+    boolean expirationIncompatible = (cacheSpec.mustExpireWithAnyOf().length > 0)
+        && !Arrays.stream(cacheSpec.mustExpireWithAnyOf()).anyMatch(context::expires);
 
     boolean skip = asyncIncompatible || asyncLoaderIncompatible
         || refreshIncompatible || weigherIncompatible
@@ -208,7 +208,7 @@ final class CacheGenerator {
   }
 
   /** Fills the cache up to the population size. */
-  @SuppressWarnings({"unchecked", "BoxedPrimitiveConstructor"})
+  @SuppressWarnings({"deprecation", "unchecked", "BoxedPrimitiveConstructor"})
   private void populate(CacheContext context, Cache<Integer, Integer> cache) {
     if (context.population.size() == 0) {
       return;

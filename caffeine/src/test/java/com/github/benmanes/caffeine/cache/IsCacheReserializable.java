@@ -16,6 +16,7 @@
 package com.github.benmanes.caffeine.cache;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
@@ -212,7 +213,8 @@ public final class IsCacheReserializable<T> extends TypeSafeDiagnosingMatcher<T>
     desc.expectThat("empty", copy.estimatedSize(), is(0L));
     desc.expectThat("same weigher", unwrapWeigher(copy.weigher).getClass(),
         is(equalTo(unwrapWeigher(original.weigher).getClass())));
-    desc.expectThat("same nodeFactory", copy.nodeFactory, is(original.nodeFactory));
+    desc.expectThat("same nodeFactory",
+        copy.nodeFactory, instanceOf(original.nodeFactory.getClass()));
     if (original.evicts()) {
       desc.expectThat("same maximumWeight", copy.maximum(), is(original.maximum()));
       desc.expectThat("same maximumEdenWeight", copy.edenMaximum(), is(original.edenMaximum()));

@@ -15,35 +15,39 @@
  */
 package com.github.benmanes.caffeine.cache;
 
+import static com.github.benmanes.caffeine.cache.Specifications.NODE_FACTORY;
+
 import com.squareup.javapoet.CodeBlock;
 
 /**
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 public final class NodeSelectorCode {
   private final CodeBlock.Builder block;
 
   private NodeSelectorCode() {
     block = CodeBlock.builder()
-        .addStatement("$T sb = new $T()", StringBuilder.class, StringBuilder.class);
+        .addStatement("$1T sb = new $1T(\"$2N.\")",
+            StringBuilder.class, NODE_FACTORY.rawType.packageName());
   }
 
   private NodeSelectorCode keys() {
     block.beginControlFlow("if (builder.isStrongKeys())")
-            .addStatement("sb.append('S')")
+            .addStatement("sb.append('P')")
         .nextControlFlow("else")
-            .addStatement("sb.append('W')")
+            .addStatement("sb.append('F')")
         .endControlFlow();
     return this;
   }
 
   private NodeSelectorCode values() {
     block.beginControlFlow("if (builder.isStrongValues())")
-            .addStatement("sb.append(\"St\")")
+            .addStatement("sb.append('S')")
         .nextControlFlow("else if (builder.isWeakValues())")
             .addStatement("sb.append('W')")
         .nextControlFlow("else")
-            .addStatement("sb.append(\"So\")")
+            .addStatement("sb.append('D')")
         .endControlFlow();
     return this;
   }
@@ -74,7 +78,8 @@ public final class NodeSelectorCode {
   }
 
   private NodeSelectorCode maximum() {
-    block.beginControlFlow("if (builder.evicts())")
+    block
+        .beginControlFlow("if (builder.evicts())")
             .addStatement("sb.append('M')")
             .beginControlFlow("if ((isAsync && builder.evicts()) || builder.isWeighted())")
                 .addStatement("sb.append('W')")
@@ -85,10 +90,23 @@ public final class NodeSelectorCode {
     return this;
   }
 
+  private NodeSelectorCode selector() {
+    block
+        .beginControlFlow("try")
+            .addStatement("$T<?> clazz = $T.class.getClassLoader().loadClass(sb.toString())",
+                Class.class, NODE_FACTORY.rawType)
+            .add("@SuppressWarnings($S)\n", "unchecked")
+            .addStatement("$1T factory = ($1T) clazz.getDeclaredConstructor().newInstance()",
+                NODE_FACTORY)
+            .addStatement("return factory")
+        .nextControlFlow("catch ($T e)", ReflectiveOperationException.class)
+            .addStatement("throw new $T(sb.toString(), e)", IllegalStateException.class)
+        .endControlFlow();
+    return this;
+  }
+
   private CodeBlock build() {
-    return block
-        .addStatement("return valueOf(sb.toString())")
-        .build();
+    return block.build();
   }
 
   public static CodeBlock get() {
@@ -97,6 +115,7 @@ public final class NodeSelectorCode {
         .values()
         .expires()
         .maximum()
+        .selector()
         .build();
   }
 }

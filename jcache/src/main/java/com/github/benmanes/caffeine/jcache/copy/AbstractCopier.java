@@ -133,7 +133,7 @@ public abstract class AbstractCopier<A> implements Copier {
   }
 
   /** @return a shallow copy of the array. */
-  private <T> T arrayCopy(T object) {
+  private static <T> T arrayCopy(T object) {
     int length = Array.getLength(object);
     @SuppressWarnings("unchecked")
     T copy = (T) Array.newInstance(object.getClass().getComponentType(), length);
@@ -143,7 +143,7 @@ public abstract class AbstractCopier<A> implements Copier {
 
   /** @return a deep copy of the object. */
   private <T> T deepCopy(T object) {
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "NullAway"})
     T copy = (T) deepCopyStrategies.get(object.getClass()).apply(object);
     return copy;
   }

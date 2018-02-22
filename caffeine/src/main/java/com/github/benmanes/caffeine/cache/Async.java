@@ -15,6 +15,7 @@
  */
 package com.github.benmanes.caffeine.cache;
 
+import static com.github.benmanes.caffeine.cache.BoundedLocalCache.MAXIMUM_EXPIRY;
 import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
@@ -23,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -32,16 +32,19 @@ import javax.annotation.Nullable;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 final class Async {
-  static final long MAXIMUM_EXPIRY = (Long.MAX_VALUE >> 1); // 150 years
+  static final long ASYNC_EXPIRY = (Long.MAX_VALUE >> 1) + (Long.MAX_VALUE >> 2); // 220 years
 
   private Async() {}
 
   /** Returns if the future has successfully completed. */
   static boolean isReady(@Nullable CompletableFuture<?> future) {
-    return (future != null) && future.isDone() && !future.isCompletedExceptionally();
+    return (future != null) && future.isDone()
+        && !future.isCompletedExceptionally()
+        && (future.join() != null);
   }
 
   /** Returns the current value or null if either not done or failed. */
+  @SuppressWarnings("NullAway")
   static @Nullable <V> V getIfReady(@Nullable CompletableFuture<V> future) {
     return isReady(future) ? future.join() : null;
   }
@@ -76,8 +79,11 @@ final class Async {
 
     @Override
     @SuppressWarnings("FutureReturnValueIgnored")
-    public void onRemoval(K key, @Nonnull CompletableFuture<V> future, RemovalCause cause) {
-      future.thenAcceptAsync(value -> delegate.onRemoval(key, value, cause), executor);
+    public void onRemoval(@Nullable K key,
+        @Nullable CompletableFuture<V> future, RemovalCause cause) {
+      if (future != null) {
+        future.thenAcceptAsync(value -> delegate.onRemoval(key, value, cause), executor);
+      }
     }
 
     Object writeReplace() {
@@ -113,7 +119,7 @@ final class Async {
 
   /**
    * An expiry for asynchronous computations. When the value is being loaded this expiry returns
-   * {@code Long.MAX_VALUE} to indicate that the entry should not be evicted due to an expiry
+   * {@code ASYNC_EXPIRY} to indicate that the entry should not be evicted due to an expiry
    * constraint. If the value is computed successfully the entry must be reinserted so that the
    * expiration is updated and the expiration timeouts reflect the value once present. The value
    * maximum range is reserved to coordinate the asynchronous life cycle.
@@ -133,7 +139,7 @@ final class Async {
         long duration = delegate.expireAfterCreate(key, future.join(), currentTime);
         return Math.min(duration, MAXIMUM_EXPIRY);
       }
-      return Long.MAX_VALUE;
+      return ASYNC_EXPIRY;
     }
 
     @Override
@@ -145,7 +151,7 @@ final class Async {
             : delegate.expireAfterUpdate(key, future.join(), currentTime, currentDuration);
         return Math.min(duration, MAXIMUM_EXPIRY);
       }
-      return Long.MAX_VALUE;
+      return ASYNC_EXPIRY;
     }
 
     @Override
@@ -155,7 +161,7 @@ final class Async {
         long duration = delegate.expireAfterRead(key, future.join(), currentTime, currentDuration);
         return Math.min(duration, MAXIMUM_EXPIRY);
       }
-      return Long.MAX_VALUE;
+      return ASYNC_EXPIRY;
     }
 
     Object writeReplace() {

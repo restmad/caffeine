@@ -100,10 +100,10 @@ final class TimerWheel<K, V> {
       for (int i = 0; i < SHIFT.length; i++) {
         long previousTicks = (previousTimeNanos >> SHIFT[i]);
         long currentTicks = (currentTimeNanos >> SHIFT[i]);
-        if ((currentTicks - previousTicks) <= 0) {
+        if ((currentTicks - previousTicks) <= 0L) {
           break;
         }
-        expire(i, previousTicks, currentTicks, previousTimeNanos, currentTimeNanos);
+        expire(i, previousTicks, currentTicks);
       }
     } catch (Throwable t) {
       nanos = previousTimeNanos;
@@ -117,15 +117,12 @@ final class TimerWheel<K, V> {
    * @param index the wheel being operated on
    * @param previousTicks the previous number of ticks
    * @param currentTicks the current number of ticks
-   * @param previousTimeNanos the previous time, in nanoseconds
-   * @param currentTimeNanos the current time, in nanoseconds
    */
-  void expire(int index, long previousTicks, long currentTicks,
-      long previousTimeNanos, long currentTimeNanos) {
+  void expire(int index, long previousTicks, long currentTicks) {
     Node<K, V>[] timerWheel = wheel[index];
 
     int start, end;
-    if ((currentTimeNanos - previousTimeNanos) >= SPANS[index + 1]) {
+    if ((currentTicks - previousTicks) >= timerWheel.length) {
       end = timerWheel.length;
       start = 0;
     } else {
@@ -148,7 +145,7 @@ final class TimerWheel<K, V> {
         node.setNextInVariableOrder(null);
 
         try {
-          if (((node.getVariableTime() - currentTimeNanos) > 0)
+          if (((node.getVariableTime() - nanos) > 0)
               || !cache.evictEntry(node, RemovalCause.EXPIRED, nanos)) {
             Node<K, V> newSentinel = findBucket(node.getVariableTime());
             link(newSentinel, node);
@@ -304,7 +301,7 @@ final class TimerWheel<K, V> {
   }
 
   /** A sentinel for the doubly-linked list in the bucket. */
-  static final class Sentinel<K, V> implements Node<K, V> {
+  static final class Sentinel<K, V> extends Node<K, V> {
     Node<K, V> prev;
     Node<K, V> next;
 
@@ -315,21 +312,23 @@ final class TimerWheel<K, V> {
     @Override public Node<K, V> getPreviousInVariableOrder() {
       return prev;
     }
+    @SuppressWarnings("NullAway")
     @Override public void setPreviousInVariableOrder(@Nullable Node<K, V> prev) {
       this.prev = prev;
     }
     @Override public Node<K, V> getNextInVariableOrder() {
       return next;
     }
+    @SuppressWarnings("NullAway")
     @Override public void setNextInVariableOrder(@Nullable Node<K, V> next) {
       this.next = next;
     }
 
-    @Override public K getKey() { return null; }
+    @Override public @Nullable K getKey() { return null; }
     @Override public Object getKeyReference() { throw new UnsupportedOperationException(); }
-    @Override public V getValue() { return null; }
+    @Override public @Nullable V getValue() { return null; }
     @Override public Object getValueReference() { throw new UnsupportedOperationException(); }
-    @Override public void setValue(V value, ReferenceQueue<V> referenceQueue) {}
+    @Override public void setValue(V value, @Nullable ReferenceQueue<V> referenceQueue) {}
     @Override public boolean containsValue(Object value) { return false; }
     @Override public boolean isAlive() { return false; }
     @Override public boolean isRetired() { return false; }

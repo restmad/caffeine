@@ -15,8 +15,6 @@
  */
 package com.github.benmanes.caffeine.cache.node;
 
-import javax.lang.model.element.Modifier;
-
 import com.github.benmanes.caffeine.cache.Feature;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
@@ -26,6 +24,7 @@ import com.squareup.javapoet.TypeName;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 public final class AddMaximum extends NodeRule {
 
   @Override
@@ -42,12 +41,12 @@ public final class AddMaximum extends NodeRule {
   private void addQueueFlag() {
     context.nodeSubtype.addField(int.class, "queueType");
     context.nodeSubtype.addMethod(MethodSpec.methodBuilder("getQueueType")
-        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+        .addModifiers(context.publicFinalModifiers())
         .returns(int.class)
         .addStatement("return queueType")
         .build());
     context.nodeSubtype.addMethod(MethodSpec.methodBuilder("setQueueType")
-        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+        .addModifiers(context.publicFinalModifiers())
         .addParameter(int.class, "queueType")
         .addStatement("this.queueType = queueType")
         .build());

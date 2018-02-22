@@ -19,6 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Set;
 
+import javax.lang.model.element.Modifier;
+
 import com.github.benmanes.caffeine.cache.Feature;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
@@ -37,6 +39,7 @@ public final class NodeContext {
   public TypeSpec.Builder nodeSubtype;
   public MethodSpec.Builder constructorByKey;
   public MethodSpec.Builder constructorByKeyRef;
+  public MethodSpec. Builder constructorDefault;
 
   public NodeContext(TypeName superClass, String className, boolean isFinal,
       Set<Feature> parentFeatures, Set<Feature> generateFeatures) {
@@ -45,5 +48,11 @@ public final class NodeContext {
     this.superClass = requireNonNull(superClass);
     this.parentFeatures = requireNonNull(parentFeatures);
     this.generateFeatures = requireNonNull(generateFeatures);
+  }
+
+  public Modifier[] publicFinalModifiers() {
+    return isFinal
+        ? new Modifier[] { Modifier.PUBLIC }
+        : new Modifier[] { Modifier.PUBLIC, Modifier.FINAL };
   }
 }
